@@ -15,7 +15,7 @@ void ofApp::setup(){
     soundStream.setup(this, outChannels, inChannels, sampleRate, bufferSize, 3);
     
     //setup ofxAudioAnalyzer with the SAME PARAMETERS
-    audioAnalyzer.setup(sampleRate, bufferSize, inChannels);
+    audioAnalyzer.setup(sampleRate, bufferSize/2, inChannels);
     
     largeFont.load("arial.ttf", 12, true, true);
     largeFont.setLineHeight(14.0f);
@@ -28,7 +28,8 @@ void ofApp::setup(){
     trainingClassLabel = 1;
     predictedClassLabel = 0;
     trainingModeActive = false;
-    recordTrainingData = false;
+    record = false;
+    //recordTrainingData = false;
     predictionModeActive = false;
     drawInfo = true;
     
@@ -44,7 +45,6 @@ void ofApp::setup(){
 //--------------------------------------------------------------
 void ofApp::update(){
     
-    //smooth = ofClamp(ofGetMouseX() / (float)ofGetWidth(), 0.0, 1.0);
     smooth = 0;
     
     //get the analysis values
@@ -54,46 +54,33 @@ void ofApp::update(){
     mfcc = audioAnalyzer.getValues(MFCC, 0, smooth);
     
     
+    //High volume trigg timer
+    triggTimer++;
+    if (triggTimer>20) {
+        singleTrigg = true;
+    }
+    
     //GRT STUFF
     VectorFloat trainingSample(trainingInputs);
     VectorFloat inputVector(trainingInputs);
     
-    //TRY TO SEND THE MFCC's
     for (int i = 0; i < 13; i++) {
         trainingSample[i] = mfcc[i];
-        //cout << mfcc[i] << endl;
     }
     
     inputVector = trainingSample;
     
-    //Update the training mode if needed
-    if( trainingModeActive ){
-        
-        //Check to see if the countdown timer has elapsed, if so then start the recording
-        if( !recordTrainingData ){
-            if( trainingTimer.timerReached() ){
-                recordTrainingData = true;
-                trainingTimer.start( RECORDING_TIME );
-            }
-        }else{
-            //We should be recording the training data - check to see if we should stop the recording
-            if( trainingTimer.timerReached() ){
-                trainingModeActive = false;
-                recordTrainingData = false;
-            }
-        }
-        
-        if( recordTrainingData ){
-            
-            if( !trainingData.addSample(trainingClassLabel, trainingSample) ){
-                infoText = "WARNING: Failed to add training sample to training data!";
-            }
-        }
+    if( record && !thresholdMode){
+        trainingData.addSample( trainingClassLabel, trainingSample );
+    } else if (record && thresholdMode && rms_l > 0.6 && singleTrigg) {
+        trainingData.addSample( trainingClassLabel, trainingSample );
+        singleTrigg = false;
+        triggTimer = 0;
     }
     
+    
     //Update the prediction mode if active
-    if( predictionModeActive ){
-        
+    if( predictionModeActive && !thresholdMode){
         
         if( pipeline.predict( inputVector ) ){
             predictedClassLabel = pipeline.getPredictedClassLabel();
@@ -101,6 +88,13 @@ void ofApp::update(){
             
         }else{
             infoText = "ERROR: Failed to run prediction!";
+        }
+    } else if (predictionModeActive && thresholdMode && rms_l > 0.6 && singleTrigg) {
+        if( pipeline.predict( inputVector ) ){
+        predictedClassLabel = pipeline.getPredictedClassLabel();
+        predictionPlot.update( pipeline.getClassLikelihoods() );
+            singleTrigg = false;
+            triggTimer = 0;
         }
     }
     
@@ -110,32 +104,25 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
     
-    ofSetColor(ofColor::cyan);
+    ofFill();
+    ofSetColor(255);
     
     float xpos = ofGetWidth() *.5;
-    float ypos = ofGetHeight() - ofGetHeight() * rms_r;
-    float radius = 5 + 100*rms_l;
+    float ypos = ofGetHeight()/2;
+    float radius = 5 + 25*rms_l;
     
-    ofDrawCircle(xpos, ypos, radius);
+    ofDrawRectangle(10, 555, 100*(rms_l+rms_r), 10);
     
-    //----------------
     
     ofSetColor(225);
-    ofDrawBitmapString("ofxAudioAnalyzer - RMS SMOOTHING INPUT EXAMPLE", 32, 32);
+    string infoString = "RMS Left: " + ofToString(rms_l);
+    
+    ofDrawBitmapString(infoString, 10, 580);
     
     
-    string infoString = "RMS Left: " + ofToString(rms_l) +
-                        "\nRMS Right: " + ofToString(rms_r) +
-                        "\nSmoothing (mouse x): " + ofToString(smooth);
-    
-    ofDrawBitmapString(infoString, 32, 579);
-    
-    
-    
-    ofDrawBitmapString("MFCC: ", 0, 300);
+
     ofPushMatrix();
     ofTranslate(0, 400);
-    ofSetColor(ofColor::cyan);
     int mw = 250;
     int mfccGraphH = 75;
     float bin_w = (float) mw / mfcc.size();
@@ -176,13 +163,17 @@ void ofApp::draw(){
         smallFont.drawString( "[l]: Load Model", textX, textY ); textY += textSpacer;
         smallFont.drawString( "[s]: Save Model", textX, textY ); textY += textSpacer;
         smallFont.drawString( "[t]: Train Model", textX, textY ); textY += textSpacer;
+        smallFont.drawString( "[v]: Toggle Threshold Mode: " + ofToString(thresholdMode), textX, textY ); textY += textSpacer;
+        smallFont.drawString( "Ready for single trigg: " + ofToString(singleTrigg), textX, textY ); textY += textSpacer;
         smallFont.drawString( "[1,2,3...]: Set Class Label", textX, textY ); textY += textSpacer;
         smallFont.drawString( "Classifier: " + classifierTypeToString( classifierType ), textX, textY ); textY += textSpacer;
         smallFont.drawString( "[n] null rejection: " + ofToString(nullRejection), textX, textY ); textY += textSpacer;
         textY += textSpacer;
         
         smallFont.drawString( "Class Label: " + ofToString( trainingClassLabel ), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "Recording: " + ofToString( recordTrainingData ), textX, textY ); textY += textSpacer;
+        //smallFont.drawString( "Recording: " + ofToString( recordTrainingData ), textX, textY ); textY += textSpacer;
+        smallFont.drawString( "Recording: " + ofToString( record ), textX, textY ); textY += textSpacer;
+        
         smallFont.drawString( "Num Samples: " + ofToString( trainingData.getNumSamples() ), textX, textY ); textY += textSpacer;
         textY += textSpacer;
         
@@ -203,13 +194,13 @@ void ofApp::draw(){
     
     if( trainingModeActive ){
         char strBuffer[1024];
-        if( !recordTrainingData ){
-            ofSetColor(255,150,0);
-            sprintf(strBuffer, "Training Mode Active - Get Ready! Timer: %0.1f",trainingTimer.getSeconds());
-        }else{
-            ofSetColor(255,0,0);
-            sprintf(strBuffer, "Training Mode Active - Recording! Timer: %0.1f",trainingTimer.getSeconds());
-        }
+//        if( !recordTrainingData ){
+//            ofSetColor(255,150,0);
+//            sprintf(strBuffer, "Training Mode Active - Get Ready! Timer: %0.1f",trainingTimer.getSeconds());
+//        }else{
+//            ofSetColor(255,0,0);
+//            sprintf(strBuffer, "Training Mode Active - Recording! Timer: %0.1f",trainingTimer.getSeconds());
+//        }
         std::string txt = strBuffer;
         ofRectangle bounds = hugeFont.getStringBoundingBox( txt, 0, 0 );
         hugeFont.drawString(strBuffer, ofGetWidth()/2 - bounds.width*0.5, ofGetHeight() - bounds.height*3 );
@@ -221,7 +212,7 @@ void ofApp::draw(){
         
         std::string txt = "Predicted Class: " + ofToString( predictedClassLabel );
         ofRectangle bounds = hugeFont.getStringBoundingBox( txt, 0, 0 );
-        ofSetColor(0,0,255);
+        ofSetColor(255);
         hugeFont.drawString( txt, ofGetWidth()/2 - bounds.width*0.5, ofGetHeight() - bounds.height*3 );
     }
     
@@ -351,10 +342,11 @@ void ofApp::keyPressed(int key){
     
     switch ( key) {
         case 'r':
-            predictionModeActive = false;
-            trainingModeActive = true;
-            recordTrainingData = false;
-            trainingTimer.start( PRE_RECORDING_COUNTDOWN_TIME );
+            record = !record;
+//            predictionModeActive = false;
+//            trainingModeActive = true;
+//            recordTrainingData = false;
+//            trainingTimer.start( PRE_RECORDING_COUNTDOWN_TIME );
             break;
         case '1':
             trainingClassLabel = 1;
@@ -384,8 +376,8 @@ void ofApp::keyPressed(int key){
             trainingClassLabel = 9;
             break;
             
-            
         case 't':
+            record = false;
             if( pipeline.train( trainingData ) ){
                 infoText = "Pipeline Trained";
                 std::cout << "getNumClasses: " << pipeline.getNumClasses() << std::endl;
@@ -414,7 +406,12 @@ void ofApp::keyPressed(int key){
         case 'i':
             drawInfo = !drawInfo;
             break;
-            
+        case 'v':
+            thresholdMode =! thresholdMode;
+            break;
+        case 'o':
+            singleTrigg =! singleTrigg;
+            break;
             
             
             
@@ -431,7 +428,7 @@ void ofApp::keyPressed(int key){
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-
+    
 }
 
 //--------------------------------------------------------------

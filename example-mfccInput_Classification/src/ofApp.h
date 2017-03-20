@@ -8,8 +8,8 @@
 using namespace GRT;
 
 
-#define PRE_RECORDING_COUNTDOWN_TIME 1000
-#define RECORDING_TIME 500
+//#define PRE_RECORDING_COUNTDOWN_TIME 1000
+//#define RECORDING_TIME 500
 
 class ofApp : public ofBaseApp{
 
@@ -48,7 +48,10 @@ class ofApp : public ofBaseApp{
     //Create some variables for the demo
     ClassificationData trainingData;      		//This will store our training data
     GestureRecognitionPipeline pipeline;        //This is a wrapper for our classifier and any pre/post processing modules
-    bool recordTrainingData;                                //This is a flag that keeps track of when we should record training data
+    
+    bool record;                                //This is a flag that keeps track of when we should record training data
+    
+    //bool recordTrainingData;                                //This is a flag that keeps track of when we should record training data
     bool trainingModeActive;
     bool predictionModeActive;
     bool drawInfo;
@@ -112,5 +115,9 @@ class ofApp : public ofBaseApp{
     
     
     int trainingInputs;
+    bool thresholdMode = false;
+    bool singleTrigg = false;
+    
+    int triggTimer = 0;
 		
 };
