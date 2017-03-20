@@ -1,0 +1,30 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "73BE4E551228482DA302485954E0947B5FF250F9",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "CC182281C6D964B9331E36C0CD377F4A30240DEA" : 0,
+    "73BE4E551228482DA302485954E0947B5FF250F9" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "7BD5E941-CC51-42D9-A87B-42258D230DBD",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "CC182281C6D964B9331E36C0CD377F4A30240DEA" : "ofxGrt\/libs\/grt\/",
+    "73BE4E551228482DA302485954E0947B5FF250F9" : "ofxGrt\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "example_audio_classification_Andreas",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "example_audio_classification_Andreas\/example_audio_classification_Andreas.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/nickgillian\/ofxGrt.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "73BE4E551228482DA302485954E0947B5FF250F9"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/nickgillian\/grt.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "CC182281C6D964B9331E36C0CD377F4A30240DEA"
+    }
+  ]
+}
