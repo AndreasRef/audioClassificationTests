@@ -3,6 +3,7 @@
 #include "ofMain.h"
 #include "ofxAudioAnalyzer.h"
 #include "ofxGrt.h"
+#include "ofxGui.h"
 
 //State that we want to use the GRT namespace
 using namespace GRT;
@@ -12,34 +13,40 @@ using namespace GRT;
 //#define RECORDING_TIME 500
 
 class ofApp : public ofBaseApp{
-
-	public:
     
-      enum ClassifierType{ ADABOOST=0, DECISION_TREE, KKN, GAUSSIAN_MIXTURE_MODEL, NAIVE_BAYES, MINDIST, RANDOM_FOREST_10, RANDOM_FOREST_100, RANDOM_FOREST_200, SOFTMAX, SVM_LINEAR, SVM_RBF, NUM_CLASSIFIERS };
+public:
     
-		void setup();
-		void update();
-		void draw();
-        void exit();
+    enum ClassifierType{ ADABOOST=0, DECISION_TREE, KKN, GAUSSIAN_MIXTURE_MODEL, NAIVE_BAYES, MINDIST, RANDOM_FOREST_10, RANDOM_FOREST_100, RANDOM_FOREST_200, SOFTMAX, SVM_LINEAR, SVM_RBF, NUM_CLASSIFIERS };
     
-        void audioIn(ofSoundBuffer &inBuffer);
-
-		void keyPressed(int key);
-		void keyReleased(int key);
-		void mouseMoved(int x, int y );
-		void mouseDragged(int x, int y, int button);
-		void mousePressed(int x, int y, int button);
-		void mouseReleased(int x, int y, int button);
-		void windowResized(int w, int h);
-		void dragEvent(ofDragInfo dragInfo);
-		void gotMessage(ofMessage msg);
-
-        ofSoundStream soundStream;
-        ofxAudioAnalyzer audioAnalyzer;
+    void setup();
+    void update();
+    void draw();
+    void exit();
     
-        vector<float> mfcc;
-        float rms_l, rms_r;
-        float smooth;
+    void audioIn(ofSoundBuffer &inBuffer);
+    
+    
+    void trainClassifier();
+    void save();
+    void load();
+    
+    
+    void keyPressed(int key);
+    void keyReleased(int key);
+    void mouseMoved(int x, int y );
+    void mouseDragged(int x, int y, int button);
+    void mousePressed(int x, int y, int button);
+    void mouseReleased(int x, int y, int button);
+    void windowResized(int w, int h);
+    void dragEvent(ofDragInfo dragInfo);
+    void gotMessage(ofMessage msg);
+    
+    ofSoundStream soundStream;
+    ofxAudioAnalyzer audioAnalyzer;
+    
+    vector<float> mfcc;
+    float rms_l, rms_r;
+    float smooth;
     
     
     //GRT STUFF
@@ -114,10 +121,21 @@ class ofApp : public ofBaseApp{
     }
     
     
+    //GUI
+    ofxPanel gui;
+    ofxFloatSlider volThreshold;
+    ofxIntSlider predictionSpan;
+    ofxIntSlider triggerTimerThreshold;
+    //ofxIntSlider trainingClassLabel;
+    
+    ofxButton  bTrain, bSave, bLoad;
+    ofxToggle tThresholdMode, tRecord; 
+    
+    
     int trainingInputs;
     bool thresholdMode = false;
-    bool singleTrigg = false;
+    bool singleTrigger = false;
     
-    int triggTimer = 0;
-		
+    int triggerTimer = 0;
+    
 };

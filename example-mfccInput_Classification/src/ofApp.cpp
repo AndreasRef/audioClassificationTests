@@ -1,3 +1,7 @@
+//To do:
+
+//Make it all GUI instead of text and key-commands
+
 #include "ofApp.h"
 
 //--------------------------------------------------------------
@@ -39,6 +43,28 @@ void ofApp::setup(){
     
     //set the default classifier
     setClassifier( MINDIST );
+    
+    //GUI
+    
+    bTrain.addListener(this, &ofApp::trainClassifier);
+    bSave.addListener(this, &ofApp::save);
+    bLoad.addListener(this, &ofApp::load);
+    
+    
+    gui.setup();
+    //gui.add(trainingClassLabel.setup("trainingClassLabel", 1, 0, 9));
+    gui.add(volThreshold.setup("volThreshold", 0.6, 0.0, 2.0));
+    gui.add(predictionSpan.setup("predictionSpan", 150, 5, 300));
+    gui.add(triggerTimerThreshold.setup("triggerTimerThreshold", 10, 1, 100));
+    
+    gui.add(bTrain.setup("Train"));
+    gui.add(bSave.setup("Save"));
+    gui.add(bLoad.setup("Load"));
+    gui.add(tThresholdMode.setup("Threshold Mode", false));
+    gui.add(tRecord.setup("Record", false));
+    
+    gui.setPosition(ofGetWidth()-150,520);
+    
    
 }
 
@@ -50,14 +76,13 @@ void ofApp::update(){
     //get the analysis values
     rms_l = audioAnalyzer.getValue(RMS, 0, smooth);
     rms_r = audioAnalyzer.getValue(RMS, 1, smooth);
-    
     mfcc = audioAnalyzer.getValues(MFCC, 0, smooth);
     
     
     //High volume trigg timer
-    triggTimer++;
-    if (triggTimer>20) {
-        singleTrigg = true;
+    triggerTimer++;
+    if (triggerTimer>triggerTimerThreshold) {
+        singleTrigger = true;
     }
     
     //GRT STUFF
@@ -70,17 +95,17 @@ void ofApp::update(){
     
     inputVector = trainingSample;
     
-    if( record && !thresholdMode){
+    if( tRecord && !tThresholdMode){
         trainingData.addSample( trainingClassLabel, trainingSample );
-    } else if (record && thresholdMode && rms_l > 0.6 && singleTrigg) {
+    } else if (tRecord && tThresholdMode && rms_l > volThreshold && singleTrigger) {
         trainingData.addSample( trainingClassLabel, trainingSample );
-        singleTrigg = false;
-        triggTimer = 0;
+        singleTrigger = false;
+        triggerTimer = 0;
     }
     
     
     //Update the prediction mode if active
-    if( predictionModeActive && !thresholdMode){
+    if( predictionModeActive && !tThresholdMode){
         
         if( pipeline.predict( inputVector ) ){
             predictedClassLabel = pipeline.getPredictedClassLabel();
@@ -89,12 +114,12 @@ void ofApp::update(){
         }else{
             infoText = "ERROR: Failed to run prediction!";
         }
-    } else if (predictionModeActive && thresholdMode && rms_l > 0.6 && singleTrigg) {
+    } else if (predictionModeActive && tThresholdMode && rms_l > volThreshold && singleTrigger) {
         if( pipeline.predict( inputVector ) ){
         predictedClassLabel = pipeline.getPredictedClassLabel();
         predictionPlot.update( pipeline.getClassLikelihoods() );
-            singleTrigg = false;
-            triggTimer = 0;
+            singleTrigger = false;
+            triggerTimer = 0;
         }
     }
     
@@ -164,7 +189,7 @@ void ofApp::draw(){
         smallFont.drawString( "[s]: Save Model", textX, textY ); textY += textSpacer;
         smallFont.drawString( "[t]: Train Model", textX, textY ); textY += textSpacer;
         smallFont.drawString( "[v]: Toggle Threshold Mode: " + ofToString(thresholdMode), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "Ready for single trigg: " + ofToString(singleTrigg), textX, textY ); textY += textSpacer;
+        smallFont.drawString( "Ready for single trigg: " + ofToString(singleTrigger), textX, textY ); textY += textSpacer;
         smallFont.drawString( "[1,2,3...]: Set Class Label", textX, textY ); textY += textSpacer;
         smallFont.drawString( "Classifier: " + classifierTypeToString( classifierType ), textX, textY ); textY += textSpacer;
         smallFont.drawString( "[n] null rejection: " + ofToString(nullRejection), textX, textY ); textY += textSpacer;
@@ -217,7 +242,7 @@ void ofApp::draw(){
     }
     
     
-    
+    gui.draw();
 }
 //--------------------------------------------------------------
 void ofApp::audioIn(ofSoundBuffer &inBuffer){
@@ -378,6 +403,7 @@ void ofApp::keyPressed(int key){
             
         case 't':
             record = false;
+            tRecord = false;
             if( pipeline.train( trainingData ) ){
                 infoText = "Pipeline Trained";
                 std::cout << "getNumClasses: " << pipeline.getNumClasses() << std::endl;
@@ -409,10 +435,6 @@ void ofApp::keyPressed(int key){
         case 'v':
             thresholdMode =! thresholdMode;
             break;
-        case 'o':
-            singleTrigg =! singleTrigg;
-            break;
-            
             
             
         case OF_KEY_TAB:
@@ -425,6 +447,39 @@ void ofApp::keyPressed(int key){
     
     
 }
+
+//--------------------------------------------------------------
+void ofApp::trainClassifier() {
+    ofLog(OF_LOG_NOTICE, "Training...");
+    
+    record = false;
+    tRecord = false;
+    if( pipeline.train( trainingData ) ){
+        infoText = "Pipeline Trained";
+        std::cout << "getNumClasses: " << pipeline.getNumClasses() << std::endl;
+        predictionPlot.setup( 500, pipeline.getNumClasses(), "prediction likelihoods" );
+        predictionPlot.setDrawGrid( true );
+        predictionPlot.setDrawInfoText( true );
+        predictionPlot.setFont( smallFont );
+        predictionPlot.setBackgroundColor( ofColor(50,50,50,255));
+        predictionModeActive = true;
+    }else infoText = "WARNING: Failed to train pipeline";
+    
+
+ofLog(OF_LOG_NOTICE, "Done training...");
+}
+
+//--------------------------------------------------------------
+void ofApp::save() {
+    trainingData.save(ofToDataPath("model.grt"));
+}
+
+//--------------------------------------------------------------
+void ofApp::load() {
+    trainingData.load(ofToDataPath("model.grt"));
+    trainClassifier();
+}
+
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
