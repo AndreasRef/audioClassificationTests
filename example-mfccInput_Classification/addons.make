@@ -2,3 +2,4 @@ ofxAudioAnalyzer
 ofxAudioDecoder
 ofxGrt
 ofxGui
+ofxOsc

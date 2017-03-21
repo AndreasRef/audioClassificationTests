@@ -4,6 +4,13 @@
 #include "ofxAudioAnalyzer.h"
 #include "ofxGrt.h"
 #include "ofxGui.h"
+#include "ofxOsc.h"
+
+
+// where to send osc messages by default
+#define DEFAULT_OSC_DESTINATION "localhost"
+#define DEFAULT_OSC_ADDRESS "/classification"
+#define DEFAULT_OSC_PORT 8000
 
 //State that we want to use the GRT namespace
 using namespace GRT;
@@ -33,6 +40,12 @@ public:
     void windowResized(int w, int h);
     void dragEvent(ofDragInfo dragInfo);
     void gotMessage(ofMessage msg);
+    
+    //OSC
+    ofxOscSender sender;
+    string oscDestination, oscAddress;
+    int oscPort;
+    
     
     //SOUND STUFF
     ofSoundStream soundStream;

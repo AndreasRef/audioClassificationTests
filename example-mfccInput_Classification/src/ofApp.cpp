@@ -42,6 +42,15 @@ void ofApp::setup(){
     MinDist minDist; //Other classifiers: AdaBoost adaboost; DecisionTree dtree; KNN knn; GMM gmm; ANBC naiveBayes; MinDist minDist; RandomForests randomForest; Softmax softmax; SVM svm;
     pipeline.setClassifier( minDist );
     
+    
+    //OSC
+    // default settings
+    oscDestination = DEFAULT_OSC_DESTINATION;
+    oscAddress = DEFAULT_OSC_ADDRESS;
+    oscPort = DEFAULT_OSC_PORT;
+    sender.setup(oscDestination, oscPort);
+    
+    
     //GUI
     bTrain.addListener(this, &ofApp::trainClassifier);
     bSave.addListener(this, &ofApp::save);
@@ -80,7 +89,6 @@ void ofApp::update(){
     long timer = ofGetElapsedTimeMillis() - startTime;
     
     //High volume trigger timer
-    //triggerTimer++;
     if (timer>triggerTimerThreshold) {
         singleTrigger = true;
     }
@@ -94,10 +102,6 @@ void ofApp::update(){
     }
     inputVector = trainingSample;
     
-    if (tRecord) {
-        
-    }
-    
     
     if( tRecord && !tThresholdMode){
         trainingData.addSample( trainingClassLabel, trainingSample );
@@ -110,10 +114,15 @@ void ofApp::update(){
     
     //Update the prediction mode if active
     if( predictionModeActive && !tThresholdMode){
-        
         if( pipeline.predict( inputVector ) ){
             predictedClassLabel = pipeline.getPredictedClassLabel();
             predictionPlot.update( pipeline.getClassLikelihoods() );
+            
+            // send over OSC
+            ofxOscMessage m;
+            m.setAddress(oscAddress);
+            m.addIntArg(pipeline.getPredictedClassLabel());
+            sender.sendMessage(m, false);
             
         }else{
             infoText = "ERROR: Failed to run prediction!";
@@ -123,14 +132,23 @@ void ofApp::update(){
             predictedClassLabel = pipeline.getPredictedClassLabel();
             predictionPlot.update( pipeline.getClassLikelihoods() );
             singleTrigger = false;
-            //triggerTimer = 0;
             startTime = ofGetElapsedTimeMillis();
             predictionAlpha = 255;
+            
+            // send over OSC
+            ofxOscMessage m;
+            m.setAddress(oscAddress);
+            m.addIntArg(pipeline.getPredictedClassLabel());
+            sender.sendMessage(m, false);
+            
         }
     }
     
     if (tThresholdMode && predictionAlpha > 0  ) predictionAlpha-=5;
     if (!tThresholdMode) predictionAlpha = 255;
+    
+    
+
     
 }
 
@@ -147,6 +165,7 @@ void ofApp::draw(){
     ofDrawRectangle(10, 210, 200*(rms), 10);
     ofSetColor(255);
     ofDrawBitmapString("RMS: " + ofToString(rms), 10, 240);
+    
     //Threshold line
     if (tThresholdMode) {
         ofSetColor(255,0,0);
