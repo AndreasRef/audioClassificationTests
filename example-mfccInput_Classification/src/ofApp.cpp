@@ -1,6 +1,8 @@
-//To do:
+/*
+ To do
+ - Output OSC?
+ */
 
-//Make it all GUI instead of text and key-commands
 
 #include "ofApp.h"
 
@@ -21,67 +23,65 @@ void ofApp::setup(){
     //setup ofxAudioAnalyzer with the SAME PARAMETERS
     audioAnalyzer.setup(sampleRate, bufferSize/2, inChannels);
     
-    largeFont.load("arial.ttf", 12, true, true);
-    largeFont.setLineHeight(14.0f);
     smallFont.load("arial.ttf", 10, true, true);
     smallFont.setLineHeight(12.0f);
     hugeFont.load("arial.ttf", 36, true, true);
     hugeFont.setLineHeight(38.0f);
     
     infoText = "";
-    trainingClassLabel = 1;
     predictedClassLabel = 0;
     trainingModeActive = false;
-    record = false;
-    //recordTrainingData = false;
     predictionModeActive = false;
     drawInfo = true;
     
-    trainingInputs = 13; // test with only mfcc's
+    trainingInputs = 13; //Number of mfcc's
     
     trainingData.setNumDimensions( trainingInputs );
     
-    //set the default classifier
-    setClassifier( MINDIST );
+    //Set classifier
+    MinDist minDist; //Other classifiers: AdaBoost adaboost; DecisionTree dtree; KNN knn; GMM gmm; ANBC naiveBayes; MinDist minDist; RandomForests randomForest; Softmax softmax; SVM svm;
+    pipeline.setClassifier( minDist );
     
     //GUI
-    
     bTrain.addListener(this, &ofApp::trainClassifier);
     bSave.addListener(this, &ofApp::save);
     bLoad.addListener(this, &ofApp::load);
+    bClear.addListener(this, &ofApp::clear);
     
     
     gui.setup();
-    //gui.add(trainingClassLabel.setup("trainingClassLabel", 1, 0, 9));
-    gui.add(volThreshold.setup("volThreshold", 0.6, 0.0, 2.0));
-    gui.add(predictionSpan.setup("predictionSpan", 150, 5, 300));
-    gui.add(triggerTimerThreshold.setup("triggerTimerThreshold", 10, 1, 100));
-    
+    gui.add(sliderClassLabel.setup("Class Label", 1, 1, 9));
+    gui.add(tRecord.setup("Record", false));
     gui.add(bTrain.setup("Train"));
     gui.add(bSave.setup("Save"));
     gui.add(bLoad.setup("Load"));
+    gui.add(bClear.setup("Clear"));
     gui.add(tThresholdMode.setup("Threshold Mode", false));
-    gui.add(tRecord.setup("Record", false));
+    gui.add(triggerTimerThreshold.setup("Threshold timer (ms)", 10, 1, 1000));
+    gui.add(volThreshold.setup("volThreshold", 0.6, 0.0, 1.0));
+    //gui.add(predictionSpan.setup("predictionSpan", 150, 5, 300)); //Maybe comming later
     
-    gui.setPosition(ofGetWidth()-150,520);
+    gui.setPosition(10,10);
     
-   
+    startTime = ofGetElapsedTimeMillis();
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
     
-    smooth = 0;
+    trainingClassLabel = sliderClassLabel;
+    
+    float smooth = 0;
     
     //get the analysis values
-    rms_l = audioAnalyzer.getValue(RMS, 0, smooth);
-    rms_r = audioAnalyzer.getValue(RMS, 1, smooth);
+    rms = audioAnalyzer.getValue(RMS, 0, smooth);
     mfcc = audioAnalyzer.getValues(MFCC, 0, smooth);
     
+    long timer = ofGetElapsedTimeMillis() - startTime;
     
-    //High volume trigg timer
-    triggerTimer++;
-    if (triggerTimer>triggerTimerThreshold) {
+    //High volume trigger timer
+    //triggerTimer++;
+    if (timer>triggerTimerThreshold) {
         singleTrigger = true;
     }
     
@@ -89,18 +89,22 @@ void ofApp::update(){
     VectorFloat trainingSample(trainingInputs);
     VectorFloat inputVector(trainingInputs);
     
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < mfcc.size(); i++) {
         trainingSample[i] = mfcc[i];
     }
-    
     inputVector = trainingSample;
+    
+    if (tRecord) {
+        
+    }
+    
     
     if( tRecord && !tThresholdMode){
         trainingData.addSample( trainingClassLabel, trainingSample );
-    } else if (tRecord && tThresholdMode && rms_l > volThreshold && singleTrigger) {
+    } else if (tRecord && tThresholdMode && rms > volThreshold && singleTrigger) {
         trainingData.addSample( trainingClassLabel, trainingSample );
         singleTrigger = false;
-        triggerTimer = 0;
+        startTime = ofGetElapsedTimeMillis();
     }
     
     
@@ -114,99 +118,82 @@ void ofApp::update(){
         }else{
             infoText = "ERROR: Failed to run prediction!";
         }
-    } else if (predictionModeActive && tThresholdMode && rms_l > volThreshold && singleTrigger) {
+    } else if (predictionModeActive && tThresholdMode && rms > volThreshold && singleTrigger) {
         if( pipeline.predict( inputVector ) ){
-        predictedClassLabel = pipeline.getPredictedClassLabel();
-        predictionPlot.update( pipeline.getClassLikelihoods() );
+            predictedClassLabel = pipeline.getPredictedClassLabel();
+            predictionPlot.update( pipeline.getClassLikelihoods() );
             singleTrigger = false;
-            triggerTimer = 0;
+            //triggerTimer = 0;
+            startTime = ofGetElapsedTimeMillis();
+            predictionAlpha = 255;
         }
     }
     
-
+    if (tThresholdMode && predictionAlpha > 0  ) predictionAlpha-=5;
+    if (!tThresholdMode) predictionAlpha = 255;
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
     
+    //RMS
     ofFill();
+    if (singleTrigger) {
+        ofSetColor(255);
+    }else {
+        ofSetColor(100);
+    }
+    ofDrawRectangle(10, 210, 200*(rms), 10);
     ofSetColor(255);
+    ofDrawBitmapString("RMS: " + ofToString(rms), 10, 240);
+    //Threshold line
+    if (tThresholdMode) {
+        ofSetColor(255,0,0);
+        ofSetLineWidth(5);
+        ofDrawLine(volThreshold*200 + 10, 210, volThreshold*200 + 10, 220);
+    }
     
-    float xpos = ofGetWidth() *.5;
-    float ypos = ofGetHeight()/2;
-    float radius = 5 + 25*rms_l;
-    
-    ofDrawRectangle(10, 555, 100*(rms_l+rms_r), 10);
-    
-    
-    ofSetColor(225);
-    string infoString = "RMS Left: " + ofToString(rms_l);
-    
-    ofDrawBitmapString(infoString, 10, 580);
-    
-    
-
-    ofPushMatrix();
-    ofTranslate(0, 400);
-    int mw = 250;
+    //MFCC's
+    ofSetColor(255);
+    int mw = 200;
     int mfccGraphH = 75;
     float bin_w = (float) mw / mfcc.size();
     for (int i = 0; i < mfcc.size(); i++){
         float scaledValue = ofMap(mfcc[i], 0, MFCC_MAX_ESTIMATED_VALUE, 0.0, 1.0, true);//clamped value
         float bin_h = -1 * (scaledValue * mfccGraphH);
-        ofDrawRectangle(i*bin_w, mfccGraphH, bin_w, bin_h);
+        ofDrawRectangle(i*bin_w, 285, bin_w, bin_h);
     }
-    ofPopMatrix();
-    
     
     
     //GRT
-    int marginX = 5;
-    int marginY = 5;
+    int marginX = 10;
+    int marginY = 10;
     int graphX = marginX;
     int graphY = marginY;
     int graphW = ofGetWidth() - graphX*2;
     int graphH = 150;
+    ofSetLineWidth(1);
     
     //Draw the info text
     if( drawInfo ){
         float infoX = marginX;
-        float infoW = 250;
-        float textX = 10;
-        float textY = marginY;
+        float infoW = 200;
+        float textX = marginX;
+        float textY = 300;
         float textSpacer = smallFont.getLineHeight() * 1.5;
         
         ofFill();
-        ofSetColor(100,100,100);
-        ofDrawRectangle( infoX, 5, infoW, 365 );
         ofSetColor( 255, 255, 255 );
         
         smallFont.drawString( "MFCCS CLASSIFIER EXAMPLE", textX, textY +20); textY += textSpacer*2;
-        
-        smallFont.drawString( "[i]: Toogle Info", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[r]: Toggle Recording", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[l]: Load Model", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[s]: Save Model", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[t]: Train Model", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[v]: Toggle Threshold Mode: " + ofToString(thresholdMode), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "Ready for single trigg: " + ofToString(singleTrigger), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[1,2,3...]: Set Class Label", textX, textY ); textY += textSpacer;
-        smallFont.drawString( "Classifier: " + classifierTypeToString( classifierType ), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "[n] null rejection: " + ofToString(nullRejection), textX, textY ); textY += textSpacer;
-        textY += textSpacer;
-        
-        smallFont.drawString( "Class Label: " + ofToString( trainingClassLabel ), textX, textY ); textY += textSpacer;
-        //smallFont.drawString( "Recording: " + ofToString( recordTrainingData ), textX, textY ); textY += textSpacer;
-        smallFont.drawString( "Recording: " + ofToString( record ), textX, textY ); textY += textSpacer;
-        
         smallFont.drawString( "Num Samples: " + ofToString( trainingData.getNumSamples() ), textX, textY ); textY += textSpacer;
         textY += textSpacer;
         
-        
         smallFont.drawString( "Total input values: "+ofToString(trainingInputs), textX, textY ); textY += textSpacer;
+        ofSetColor(0,255,0);
+        smallFont.drawString( infoText, textX, textY ); textY += textSpacer;
         textY += textSpacer;
-        
-        
         
         //Update the graph position
         graphX = infoX + infoW + 15;
@@ -214,39 +201,18 @@ void ofApp::draw(){
     }
     
     
-    
-    
-    
-    if( trainingModeActive ){
-        char strBuffer[1024];
-//        if( !recordTrainingData ){
-//            ofSetColor(255,150,0);
-//            sprintf(strBuffer, "Training Mode Active - Get Ready! Timer: %0.1f",trainingTimer.getSeconds());
-//        }else{
-//            ofSetColor(255,0,0);
-//            sprintf(strBuffer, "Training Mode Active - Recording! Timer: %0.1f",trainingTimer.getSeconds());
-//        }
-        std::string txt = strBuffer;
-        ofRectangle bounds = hugeFont.getStringBoundingBox( txt, 0, 0 );
-        hugeFont.drawString(strBuffer, ofGetWidth()/2 - bounds.width*0.5, ofGetHeight() - bounds.height*3 );
-    }
-    
     //If the model has been trained, then draw this
     if( pipeline.getTrained() ){
         predictionPlot.draw( graphX, graphY, graphW, graphH ); graphY += graphH * 1.1;
-        
         std::string txt = "Predicted Class: " + ofToString( predictedClassLabel );
         ofRectangle bounds = hugeFont.getStringBoundingBox( txt, 0, 0 );
-        ofSetColor(255);
+        ofSetColor(255, predictionAlpha);
         hugeFont.drawString( txt, ofGetWidth()/2 - bounds.width*0.5, ofGetHeight() - bounds.height*3 );
     }
-    
-    
     gui.draw();
 }
 //--------------------------------------------------------------
 void ofApp::audioIn(ofSoundBuffer &inBuffer){
-    //ANALYZE SOUNDBUFFER:
     audioAnalyzer.analyze(inBuffer);
 }
 
@@ -256,203 +222,66 @@ void ofApp::exit(){
     audioAnalyzer.exit();
 }
 
-//--------------------------------------------------------------
-
-bool ofApp::setClassifier( const int type ){
-    
-    AdaBoost adaboost;
-    DecisionTree dtree;
-    KNN knn;
-    GMM gmm;
-    ANBC naiveBayes;
-    MinDist minDist;
-    RandomForests randomForest;
-    Softmax softmax;
-    SVM svm;
-    
-    this->classifierType = type;
-    
-    switch( classifierType ){
-        case ADABOOST:
-            adaboost.enableNullRejection( nullRejection ); // The GRT AdaBoost algorithm does not currently support null rejection, although this will be added at some point in the near future.
-            adaboost.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( adaboost );
-            break;
-        case DECISION_TREE:
-            dtree.enableNullRejection( nullRejection );
-            dtree.setNullRejectionCoeff( 3 );
-            dtree.setMaxDepth( 10 );
-            dtree.setMinNumSamplesPerNode( 3 );
-            dtree.setRemoveFeaturesAtEachSpilt( false );
-            pipeline.setClassifier( dtree );
-            break;
-        case KKN:
-            knn.enableNullRejection( nullRejection );
-            knn.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( knn );
-            break;
-        case GAUSSIAN_MIXTURE_MODEL:
-            gmm.enableNullRejection( nullRejection );
-            gmm.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( gmm );
-            break;
-        case NAIVE_BAYES:
-            naiveBayes.enableNullRejection( nullRejection );
-            naiveBayes.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( naiveBayes );
-            break;
-        case MINDIST:
-            minDist.enableNullRejection( nullRejection );
-            minDist.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( minDist );
-            break;
-        case RANDOM_FOREST_10:
-            randomForest.enableNullRejection( nullRejection );
-            randomForest.setNullRejectionCoeff( 3 );
-            randomForest.setForestSize( 10 );
-            randomForest.setNumRandomSplits( 2 );
-            randomForest.setMaxDepth( 10 );
-            randomForest.setMinNumSamplesPerNode( 3 );
-            randomForest.setRemoveFeaturesAtEachSpilt( false );
-            pipeline.setClassifier( randomForest );
-            break;
-        case RANDOM_FOREST_100:
-            randomForest.enableNullRejection( nullRejection );
-            randomForest.setNullRejectionCoeff( 3 );
-            randomForest.setForestSize( 100 );
-            randomForest.setNumRandomSplits( 2 );
-            randomForest.setMaxDepth( 10 );
-            randomForest.setMinNumSamplesPerNode( 3 );
-            randomForest.setRemoveFeaturesAtEachSpilt( false );
-            pipeline.setClassifier( randomForest );
-            break;
-        case RANDOM_FOREST_200:
-            randomForest.enableNullRejection( nullRejection );
-            randomForest.setNullRejectionCoeff( 3 );
-            randomForest.setForestSize( 200 );
-            randomForest.setNumRandomSplits( 2 );
-            randomForest.setMaxDepth( 10 );
-            randomForest.setMinNumSamplesPerNode( 3 );
-            randomForest.setRemoveFeaturesAtEachSpilt( false );
-            pipeline.setClassifier( randomForest );
-            break;
-        case SOFTMAX:
-            softmax.enableNullRejection( false ); //Does not support null rejection
-            softmax.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( softmax );
-            break;
-        case SVM_LINEAR:
-            svm.enableNullRejection( nullRejection );
-            svm.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( SVM(SVM::LINEAR_KERNEL) );
-            break;
-        case SVM_RBF:
-            svm.enableNullRejection( nullRejection );
-            svm.setNullRejectionCoeff( 3 );
-            pipeline.setClassifier( SVM(SVM::RBF_KERNEL) );
-            break;
-        default:
-            return false;
-            break;
-    }
-    
-    return true;
-}
 
 //--------------------------------------------------------------
-void ofApp::keyPressed(int key){
-    
-    infoText = "";
-    bool buildTexture = false;
+void ofApp::keyPressed(int key){ //Optional key interactions
     
     switch ( key) {
-        case 'r':
-            record = !record;
-//            predictionModeActive = false;
-//            trainingModeActive = true;
-//            recordTrainingData = false;
-//            trainingTimer.start( PRE_RECORDING_COUNTDOWN_TIME );
-            break;
         case '1':
-            trainingClassLabel = 1;
+            sliderClassLabel = 1;
             break;
         case '2':
-            trainingClassLabel = 2;
+            sliderClassLabel = 2;
             break;
         case '3':
-            trainingClassLabel = 3;
+            sliderClassLabel = 3;
             break;
         case '4':
-            trainingClassLabel = 4;
+            sliderClassLabel = 4;
             break;
         case '5':
-            trainingClassLabel = 5;
+            sliderClassLabel = 5;
             break;
         case '6':
-            trainingClassLabel = 6;
+            sliderClassLabel = 6;
             break;
         case '7':
-            trainingClassLabel = 7;
+            sliderClassLabel = 7;
             break;
         case '8':
-            trainingClassLabel = 8;
+            sliderClassLabel = 8;
             break;
         case '9':
-            trainingClassLabel = 9;
+            sliderClassLabel = 9;
             break;
             
-        case 't':
-            record = false;
-            tRecord = false;
-            if( pipeline.train( trainingData ) ){
-                infoText = "Pipeline Trained";
-                std::cout << "getNumClasses: " << pipeline.getNumClasses() << std::endl;
-                predictionPlot.setup( 500, pipeline.getNumClasses(), "prediction likelihoods" );
-                predictionPlot.setDrawGrid( true );
-                predictionPlot.setDrawInfoText( true );
-                predictionPlot.setFont( smallFont );
-                predictionPlot.setBackgroundColor( ofColor(50,50,50,255));
-                predictionModeActive = true;
-            }else infoText = "WARNING: Failed to train pipeline";
-            break;
         case 's':
-            if( trainingData.save( ofToDataPath("TrainingData.grt") ) ){
-                infoText = "Training data saved to file";
-            }else infoText = "WARNING: Failed to save training data to file";
+            save();
             break;
         case 'l':
-            if( trainingData.load( ofToDataPath("TrainingData.grt") ) ){
-                infoText = "Training data loaded from file";
-            }else infoText = "WARNING: Failed to load training data from file";
+            load();
+            break;
+        case 't':
+            trainClassifier();
             break;
         case 'c':
-            trainingData.clear();
-            infoText = "Training data cleared";
+            clear();
             break;
-        case 'i':
-            drawInfo = !drawInfo;
+        case 'r':
+            tRecord =! tRecord;
             break;
-        case 'v':
-            thresholdMode =! thresholdMode;
-            break;
-            
-            
-        case OF_KEY_TAB:
-            setClassifier( ++this->classifierType % NUM_CLASSIFIERS );
+        case 'm':
+            tThresholdMode =! tThresholdMode;
             break;
             
         default:
             break;
     }
-    
-    
 }
 
 //--------------------------------------------------------------
 void ofApp::trainClassifier() {
     ofLog(OF_LOG_NOTICE, "Training...");
-    
-    record = false;
     tRecord = false;
     if( pipeline.train( trainingData ) ){
         infoText = "Pipeline Trained";
@@ -465,19 +294,33 @@ void ofApp::trainClassifier() {
         predictionModeActive = true;
     }else infoText = "WARNING: Failed to train pipeline";
     
-
-ofLog(OF_LOG_NOTICE, "Done training...");
+    
+    ofLog(OF_LOG_NOTICE, "Done training...");
 }
 
 //--------------------------------------------------------------
 void ofApp::save() {
-    trainingData.save(ofToDataPath("model.grt"));
+    if( trainingData.save( ofToDataPath("TrainingData.grt") ) ){
+        infoText = "Training data saved to file";
+    }else infoText = "WARNING: Failed to save training data to file";
+    
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::load() {
-    trainingData.load(ofToDataPath("model.grt"));
-    trainClassifier();
+    if( trainingData.load( ofToDataPath("TrainingData.grt") ) ){
+        infoText = "Training data loaded from file";
+        trainClassifier();
+    }else infoText = "WARNING: Failed to load training data from file";
+    
+}
+
+//--------------------------------------------------------------
+void ofApp::clear() {
+    trainingData.clear();
+    infoText = "Training data cleared";
+    predictionModeActive = false;
 }
 
 
@@ -488,35 +331,35 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::windowResized(int w, int h){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::gotMessage(ofMessage msg){
-
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
-
+    
 }
