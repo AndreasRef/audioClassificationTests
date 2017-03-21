@@ -1,0 +1,37 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "A51CE218A5DA5FDC259CB3DB3F5630E6C25AC721",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "A51CE218A5DA5FDC259CB3DB3F5630E6C25AC721" : 0,
+    "73BE4E551228482DA302485954E0947B5FF250F9" : 0,
+    "CC182281C6D964B9331E36C0CD377F4A30240DEA" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "9F24606E-71C3-4B26-9187-8998D79469A0",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "A51CE218A5DA5FDC259CB3DB3F5630E6C25AC721" : "audioClassificationTests\/",
+    "73BE4E551228482DA302485954E0947B5FF250F9" : "..\/addons\/ofxGrt",
+    "CC182281C6D964B9331E36C0CD377F4A30240DEA" : "..\/addons\/ofxGrt\/libs\/grt"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "maxim-mfccInput_Classification",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "maxim-mfccInput_Classification\/maxim-mfccInput_Classification.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/nickgillian\/ofxGrt.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "73BE4E551228482DA302485954E0947B5FF250F9"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/AndreasRef\/audioClassificationTests.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "A51CE218A5DA5FDC259CB3DB3F5630E6C25AC721"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/nickgillian\/grt.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "CC182281C6D964B9331E36C0CD377F4A30240DEA"
+    }
+  ]
+}
