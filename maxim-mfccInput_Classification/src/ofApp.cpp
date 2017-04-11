@@ -8,16 +8,14 @@ void ofApp::setup(){
     ofBackground(34, 34, 34);
     ofSetFrameRate(60);
     
-    
     //MAXIM
-    /* This is stuff you always need when you use Maximilian. Don't change it.*/
-    sampleRate 			= 44100; /* Sampling Rate */
-    initialBufferSize	= 512;	/* Buffer Size. you have to fill this buffer with sound*/
-    lAudioOut			= new float[initialBufferSize];/* outputs */
+    // This is stuff you always need when you use Maximilian. Don't change it.
+    sampleRate 			= 44100;
+    initialBufferSize	= 512;
+    lAudioOut			= new float[initialBufferSize];
     rAudioOut			= new float[initialBufferSize];
-    lAudioIn			= new float[initialBufferSize];/* inputs */
+    lAudioIn			= new float[initialBufferSize];
     rAudioIn			= new float[initialBufferSize];
-    
     
     /* This is a nice safe piece of code */
     memset(lAudioOut, 0, initialBufferSize * sizeof(float));
@@ -25,7 +23,7 @@ void ofApp::setup(){
     memset(lAudioIn, 0, initialBufferSize * sizeof(float));
     memset(rAudioIn, 0, initialBufferSize * sizeof(float));
     
-    /* Now you can put anything you would normally put in maximilian's 'setup' method in here. */
+    // Now you can put anything you would normally put in maximilian's 'setup' method in here.
     mfft.setup(fftSize, 512, 256); //just a forward FFT
     oct.setup(sampleRate, fftSize/2, nAverages);
     mfccs = (double*) malloc(sizeof(double) * 13);
@@ -34,28 +32,23 @@ void ofApp::setup(){
     mfcc.setup(512, 42, 13, 20, 20000, sampleRate);
     
     ofxMaxiSettings::setup(sampleRate, 2, initialBufferSize);
-    ofSoundStreamSetup(2,2, this, sampleRate, initialBufferSize, 4);/* Call this last ! */
+    ofSoundStreamSetup(2,2, this, sampleRate, initialBufferSize, 4);// Call this last !
     
-    
+    //Fonts
     smallFont.load("arial.ttf", 10, true, true);
     smallFont.setLineHeight(12.0f);
     hugeFont.load("arial.ttf", 36, true, true);
     hugeFont.setLineHeight(38.0f);
     
+    //Grt
     infoText = "";
     predictedClassLabel = 0;
     trainingModeActive = false;
     predictionModeActive = false;
-    drawInfo = true;
-    
     trainingInputs = 13; //Number of mfcc's
-    
     trainingData.setNumDimensions( trainingInputs );
-    
-    //Set classifier
     MinDist minDist; //Other classifiers: AdaBoost adaboost; DecisionTree dtree; KNN knn; GMM gmm; ANBC naiveBayes; MinDist minDist; RandomForests randomForest; Softmax softmax; SVM svm;
     pipeline.setClassifier( minDist );
-    
     
     //OSC
     // default settings
@@ -71,7 +64,6 @@ void ofApp::setup(){
     bLoad.addListener(this, &ofApp::load);
     bClear.addListener(this, &ofApp::clear);
     
-    
     gui.setup();
     gui.add(sliderClassLabel.setup("Class Label", 1, 1, 9));
     gui.add(tRecord.setup("Record", false));
@@ -81,8 +73,7 @@ void ofApp::setup(){
     gui.add(bClear.setup("Clear"));
     gui.add(tThresholdMode.setup("Threshold Mode", false));
     gui.add(triggerTimerThreshold.setup("Threshold timer (ms)", 10, 1, 1000));
-    gui.add(volThreshold.setup("volThreshold", 0.6, 0.0, 5.0));
-    //gui.add(predictionSpan.setup("predictionSpan", 150, 5, 300)); //Maybe comming later
+    gui.add(volThreshold.setup("volThreshold", 0.6, 0.0, 10.0));
     
     gui.setPosition(10,10);
     
@@ -94,17 +85,6 @@ void ofApp::update(){
     
     trainingClassLabel = sliderClassLabel;
     
-    float smooth = 0;
-    
-
-    
-    
-    //get the analysis values
-    //rms = audioAnalyzer.getValue(RMS, 0, smooth);
-    //mfcc = audioAnalyzer.getValues(MFCC, 0, smooth);
-    
-    //rms = 0.5; //debug
-    
     long timer = ofGetElapsedTimeMillis() - startTime;
     
     //High volume trigger timer
@@ -112,25 +92,21 @@ void ofApp::update(){
         singleTrigger = true;
     }
     
-    //GRT STUFF
+    //Grt
     VectorFloat trainingSample(trainingInputs);
     VectorFloat inputVector(trainingInputs);
     
-//    for (int i = 0; i < mfcc.size(); i++) {
-//        trainingSample[i] = mfcc[i];
-//    }
-
-        for (int i = 0; i < 13; i++) {
-            trainingSample[i] = mfccs[i];
-        }
+    for (int i = 0; i < 13; i++) {
+        trainingSample[i] = mfccs[i];
+    }
     
     inputVector = trainingSample;
     
     
     if( tRecord && !tThresholdMode){
-        trainingData.addSample( trainingClassLabel, trainingSample );
+        trainingData.addSample( sliderClassLabel, trainingSample );
     } else if (tRecord && tThresholdMode && rms > volThreshold && singleTrigger) {
-        trainingData.addSample( trainingClassLabel, trainingSample );
+        trainingData.addSample( sliderClassLabel, trainingSample );
         singleTrigger = false;
         startTime = ofGetElapsedTimeMillis();
     }
@@ -142,11 +118,7 @@ void ofApp::update(){
             predictedClassLabel = pipeline.getPredictedClassLabel();
             predictionPlot.update( pipeline.getClassLikelihoods() );
             
-            // send over OSC
-            ofxOscMessage m;
-            m.setAddress(oscAddress);
-            m.addIntArg(pipeline.getPredictedClassLabel());
-            sender.sendMessage(m, false);
+            sendOSC();
             
         }else{
             infoText = "ERROR: Failed to run prediction!";
@@ -159,12 +131,7 @@ void ofApp::update(){
             startTime = ofGetElapsedTimeMillis();
             predictionAlpha = 255;
             
-            // send over OSC
-            ofxOscMessage m;
-            m.setAddress(oscAddress);
-            m.addIntArg(pipeline.getPredictedClassLabel());
-            sender.sendMessage(m, false);
-            
+            sendOSC();
         }
     }
     
@@ -186,7 +153,7 @@ void ofApp::draw(){
     ofSetColor(255);
     char rmsString[255]; // an array of chars
     sprintf(rmsString, "RMS: %.2f", rms);
-    ofDrawBitmapString(rmsString, 10, 240);
+    smallFont.drawString(rmsString, 10, 240);
     
     //Threshold line
     if (tThresholdMode) {
@@ -195,54 +162,46 @@ void ofApp::draw(){
         ofDrawLine(volThreshold*20 + 10, 210, volThreshold*20 + 10, 220);
     }
     
-    //DRAW MAXIM MFCC's
-        ofSetColor(255);
-        int mw = 200;
-        int mfccGraphH = 20;
-        float bin_w = (float) mw / 13;
-        for (int i = 0; i < 13; i++){
-            float bin_h = -1 * (mfccs[i] * mfccGraphH);
-            ofDrawRectangle(i*bin_w, 285, bin_w, bin_h);
-        }
+    //Draw MFCCs
+    ofSetColor(255);
+    int mw = 200;
+    int mfccGraphH = 20;
+    float bin_w = (float) mw / 13;
+    for (int i = 0; i < 13; i++){
+        float bin_h = -1 * (mfccs[i] * mfccGraphH);
+        ofDrawRectangle(i*bin_w + 10, 285, bin_w, bin_h);
+    }
     
-    
-    //GRT
-    int marginX = 10;
-    int marginY = 10;
-    int graphX = marginX;
-    int graphY = marginY;
-    int graphW = ofGetWidth() - graphX*2;
-    int graphH = 150;
-    ofSetLineWidth(1);
     
     //Draw the info text
-    if( drawInfo ){
-        float infoX = marginX;
-        float infoW = 200;
-        float textX = marginX;
-        float textY = 300;
-        float textSpacer = smallFont.getLineHeight() * 1.5;
-        
-        ofFill();
-        ofSetColor( 255, 255, 255 );
-        
-        smallFont.drawString( "MFCCS CLASSIFIER EXAMPLE", textX, textY +20); textY += textSpacer*2;
-        smallFont.drawString( "Num Samples: " + ofToString( trainingData.getNumSamples() ), textX, textY ); textY += textSpacer;
-        textY += textSpacer;
-        
-        smallFont.drawString( "Total input values: "+ofToString(trainingInputs), textX, textY ); textY += textSpacer;
-        ofSetColor(0,255,0);
-        smallFont.drawString( infoText, textX, textY ); textY += textSpacer;
-        textY += textSpacer;
-        
-        //Update the graph position
-        graphX = infoX + infoW + 15;
-        graphW = ofGetWidth() - graphX - 15;
-    }
+    int marginX, marginY, graphX, graphY = 10;
+    int graphW = ofGetWidth() - graphX*2;
+    int graphH = 150;
+    float infoX = 10;
+    float infoW = 200;
+    float textX = marginX;
+    float textY = 300;
+    float textSpacer = smallFont.getLineHeight() * 1.5;
+    
+    ofFill();
+    ofSetColor( 255, 255, 255 );
+    
+    smallFont.drawString( "MFCCS CLASSIFIER EXAMPLE", textX, textY +20); textY += textSpacer*2;
+    smallFont.drawString( "Num Samples: " + ofToString( trainingData.getNumSamples() ), textX, textY ); textY += textSpacer;
+    textY += textSpacer;
+    smallFont.drawString( "Total input values: "+ofToString(trainingInputs), textX, textY ); textY += textSpacer;
+    ofSetColor(0,255,0);
+    smallFont.drawString( infoText, textX, textY ); textY += textSpacer;
+    textY += textSpacer;
+    
+    //Update the graph position
+    graphX = infoX + infoW + 15;
+    graphW = ofGetWidth() - graphX - 15;
     
     
     //If the model has been trained, then draw this
     if( pipeline.getTrained() ){
+        ofSetLineWidth(1);
         predictionPlot.draw( graphX, graphY, graphW, graphH ); graphY += graphH * 1.1;
         std::string txt = "Predicted Class: " + ofToString( predictedClassLabel );
         ofRectangle bounds = hugeFont.getStringBoundingBox( txt, 0, 0 );
@@ -252,6 +211,15 @@ void ofApp::draw(){
     gui.draw();
 }
 
+
+
+//--------------------------------------------------------------
+void ofApp::sendOSC (){
+    ofxOscMessage m;
+    m.setAddress(oscAddress);
+    m.addIntArg(pipeline.getPredictedClassLabel());
+    sender.sendMessage(m, false);
+}
 
 //--------------------------------------------------------------
 void ofApp::audioRequested 	(float * output, int bufferSize, int nChannels){
@@ -276,7 +244,6 @@ void ofApp::audioReceived 	(float * input, int bufferSize, int nChannels){
     float sum = 0;
     for (int i = 0; i < bufferSize; i++){
         
-        /* grab the data out of the arrays*/
         lAudioIn[i] = input[i*2];
         rAudioIn[i] = input[i*2+1];
         
@@ -429,6 +396,6 @@ void ofApp::gotMessage(ofMessage msg){
 }
 
 //--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
+void ofApp::dragEvent(ofDragInfo dragInfo){
     
 }

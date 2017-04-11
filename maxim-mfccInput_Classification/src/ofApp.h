@@ -6,7 +6,6 @@
 #include "ofxGui.h"
 #include "ofxOsc.h"
 
-
 // where to send osc messages by default
 #define DEFAULT_OSC_DESTINATION "localhost"
 #define DEFAULT_OSC_ADDRESS "/classification"
@@ -29,6 +28,8 @@ public:
     void load();
     void clear();
     
+    void sendOSC();
+    
     void keyPressed(int key);
     void keyReleased(int key);
     void mouseMoved(int x, int y );
@@ -46,20 +47,18 @@ public:
     
     
     //MAXIM SOUND
-    void audioRequested 	(float * input, int bufferSize, int nChannels); /* output method */
-    void audioReceived 	(float * input, int bufferSize, int nChannels); /* input method */
+    void audioRequested 	(float * input, int bufferSize, int nChannels); // output method
+    void audioReceived 	(float * input, int bufferSize, int nChannels); // input method
     
-    float 	* lAudioOut; /* outputs */
+    float 	* lAudioOut; //outputs
     float   * rAudioOut;
     
-    float * lAudioIn; /* inputs */
+    float * lAudioIn; //inputs
     float * rAudioIn;
     
-    int		initialBufferSize; /* buffer size */
+    int		initialBufferSize; //buffer size
     int		sampleRate;
     
-    
-    /* stick your maximilian stuff below */
     double wave;
     ofxMaxiFFTOctaveAnalyzer oct;
     int nAverages = 12;
@@ -73,27 +72,24 @@ public:
     double *mfccs;
     float rms = 0;
     
-    //GRT STUFF
-    ClassificationData trainingData;      		//This will store our training data
-    GestureRecognitionPipeline pipeline;        //This is a wrapper for our classifier and any pre/post processing modules
+    //GRT
+    ClassificationData trainingData;
+    GestureRecognitionPipeline pipeline;
     
     bool trainingModeActive;
     bool predictionModeActive;
-    bool drawInfo;
     
-    UINT trainingClassLabel;                    //This will hold the current label for when we are training the classifier
+    UINT trainingClassLabel;
     UINT predictedClassLabel;
-    string infoText;                            //This string will be used to draw some info messages to the main app window
+    string infoText;
     ofTrueTypeFont smallFont;
     ofTrueTypeFont hugeFont;
     ofxGrtTimeseriesPlot predictionPlot;
     int trainingInputs;
     
-    
     //GUI
     ofxPanel gui;
     ofxFloatSlider volThreshold;
-    ofxIntSlider predictionSpan;
     ofxIntSlider triggerTimerThreshold;
     ofxIntSlider sliderClassLabel;
     
